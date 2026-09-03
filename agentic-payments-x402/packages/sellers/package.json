@@ -1,0 +1,21 @@
+{
+  "name": "@travel-x402/sellers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Marketplace de APIs de viagem: rotas gratuitas e rotas premium cobradas por request via x402",
+  "scripts": {
+    "dev": "dotenvx run -f ../../.env -- tsx watch src/server.ts",
+    "start": "dotenvx run -f ../../.env -- tsx src/server.ts"
+  },
+  "dependencies": {
+    "@travel-x402/shared": "*",
+    "@x402/core": "^2.24.0",
+    "@x402/evm": "^2.24.0",
+    "@x402/express": "^2.24.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}

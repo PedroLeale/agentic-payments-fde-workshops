@@ -1,0 +1,21 @@
+{
+  "name": "@travel-x402/facilitator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Facilitator x402 local: verifica assinaturas EIP-3009 e liquida em um ledger em memoria",
+  "scripts": {
+    "dev": "dotenvx run -f ../../.env -- tsx watch src/server.ts",
+    "start": "dotenvx run -f ../../.env -- tsx src/server.ts"
+  },
+  "dependencies": {
+    "@travel-x402/shared": "*",
+    "@x402/core": "^2.24.0",
+    "@x402/evm": "^2.24.0",
+    "express": "^5.2.1",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}

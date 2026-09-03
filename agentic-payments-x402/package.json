@@ -1,0 +1,38 @@
+{
+  "name": "agentic-travel-x402",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente de viagens com wallet propria que compra inteligencia premium via x402 - workshop reference project",
+  "workspaces": [
+    "packages/shared",
+    "packages/facilitator",
+    "packages/sellers",
+    "packages/agent",
+    "packages/web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n facilitator,sellers,agent,web -c magenta,cyan,yellow,green \"npm:dev:facilitator\" \"npm:dev:sellers\" \"npm:dev:agent\" \"npm:dev:web\"",
+    "dev:facilitator": "npm run dev --workspace @travel-x402/facilitator",
+    "dev:sellers": "npm run dev --workspace @travel-x402/sellers",
+    "dev:agent": "npm run dev --workspace @travel-x402/agent",
+    "dev:web": "npm run dev --workspace @travel-x402/web",
+    "agent": "npm run start --workspace @travel-x402/agent",
+    "demo": "npm run demo --workspace @travel-x402/agent",
+    "wallet": "npm run wallet --workspace @travel-x402/agent",
+    "wallet:new": "npm run wallet:new --workspace @travel-x402/agent",
+    "ledger": "npm run ledger --workspace @travel-x402/agent",
+    "pay-once": "npm run pay-once --workspace @travel-x402/agent",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/facilitator && tsc -p packages/sellers && tsc -p packages/agent"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^2.21.0",
+    "@types/node": "^26.2.0",
+    "concurrently": "^10.0.5",
+    "tsx": "^4.23.12",
+    "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@travel-x402/agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente de viagens (AWS Strands Agents) com wallet propria e budget de inteligencia premium",
+  "scripts": {
+    "start": "dotenvx run -f ../../.env -- tsx src/cli.ts",
+    "wallet": "dotenvx run -f ../../.env -- tsx src/wallet-cli.ts",
+    "ledger": "dotenvx run -f ../../.env -- tsx src/ledger-cli.ts",
+    "pay-once": "dotenvx run -f ../../.env -- tsx src/pay-once.ts",
+    "demo": "dotenvx run -f ../../.env -- tsx src/demo.ts",
+    "wallet:new": "tsx src/new-wallet.ts",
+    "serve": "dotenvx run -f ../../.env -- tsx src/server.ts",
+    "dev": "dotenvx run -f ../../.env -- tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@strands-agents/sdk": "^1.16.0",
+    "@travel-x402/shared": "*",
+    "@x402/core": "^2.24.0",
+    "@x402/evm": "^2.24.0",
+    "@x402/fetch": "^2.24.0",
+    "openai": "^6.45.0",
+    "viem": "^2.56.3",
+    "zod": "^4.5.4",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}
