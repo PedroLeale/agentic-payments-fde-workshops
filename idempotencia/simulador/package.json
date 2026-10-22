@@ -1,0 +1,20 @@
+{
+  "name": "simulador-idempotencia",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs & vite",
+    "api": "node --watch server.mjs",
+    "web": "vite",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.4",
+    "vite": "^8.2.0"
+  }
+}
