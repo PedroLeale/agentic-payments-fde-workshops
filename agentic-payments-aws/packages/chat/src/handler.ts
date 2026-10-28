@@ -2,7 +2,7 @@ import type { APIGatewayProxyEvent } from 'aws-lambda'
 import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk'
 import { chatHandler } from './chat.ts'
 import { gatewayTools } from './gateway.ts'
-import { dynamoStore } from './history.ts'
+import { dynamoStore } from '@agentic-aws/store'
 
 const env = (name: string) => {
   const value = process.env[name]

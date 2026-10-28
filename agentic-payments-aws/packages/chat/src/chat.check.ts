@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { Writable } from 'node:stream'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { APIGatewayProxyEvent } from 'aws-lambda'
-import { chatHandler, MAX_MESSAGE_CHARS, type ChatDeps, type OpenResponse } from './chat.ts'
+import { chatHandler, MAX_MESSAGE_CHARS, type ChatDeps, type ChatStore, type OpenResponse } from './chat.ts'
 import type { Tools } from './gateway.ts'
-import { ConcurrentTurn, type Session, type Store } from './history.ts'
+import { ConcurrentTurn, type Session } from '@agentic-aws/store'
 import { MAX_ROUNDS, type Model } from './turn.ts'
 import { SYSTEM } from './prompt.ts'
 
@@ -40,16 +40,20 @@ function memoryStore() {
   const sessions = new Map<string, Session & { owner: string }>()
   const messages = new Map<string, Anthropic.MessageParam[]>()
   let conflictNext = false
-  const store: Store = {
+  const store: ChatStore = {
     async getSession(owner, id) {
       const s = sessions.get(id)
-      return s && s.owner === owner ? { id: s.id, title: s.title, lastSeq: s.lastSeq, ttl: s.ttl } : undefined
+      if (!s || s.owner !== owner) return undefined
+      const { owner: _, ...session } = s
+      return session
     },
     async createSession(owner, title) {
-      const s = { owner, id: `s${sessions.size + 1}`, title, lastSeq: 0, ttl: 0 }
+      const at = new Date().toISOString()
+      const s = { owner, id: `s${sessions.size + 1}`, title, createdAt: at, updatedAt: at, lastSeq: 0, ttl: 0 }
       sessions.set(s.id, s)
       messages.set(s.id, [])
-      return { id: s.id, title, lastSeq: 0, ttl: 0 }
+      const { owner: _, ...session } = s
+      return session
     },
     async loadMessages(id) {
       return structuredClone(messages.get(id) ?? [])

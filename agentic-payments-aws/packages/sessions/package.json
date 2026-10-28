@@ -1,0 +1,18 @@
+{
+  "name": "@agentic-aws/sessions",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lambda de sessoes: listar, ler historico e apagar",
+  "scripts": {
+    "check": "node src/sessions.check.ts && tsc --noEmit"
+  },
+  "dependencies": {
+    "@agentic-aws/shared": "*",
+    "@agentic-aws/store": "*"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@types/aws-lambda": "^8.10.164"
+  }
+}

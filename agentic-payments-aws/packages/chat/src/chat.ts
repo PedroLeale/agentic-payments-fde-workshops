@@ -1,17 +1,19 @@
 import type { Writable } from 'node:stream'
 import type { APIGatewayProxyEvent } from 'aws-lambda'
-import type { StreamLine } from '@agentic-aws/shared'
+import { corsHeaders, type StreamLine } from '@agentic-aws/shared'
+import { ConcurrentTurn, type Store } from '@agentic-aws/store'
 import { NO_TOOLS, type Tools } from './gateway.ts'
-import { ConcurrentTurn, type Store } from './history.ts'
 import { runTurn, TurnError, type Model } from './turn.ts'
 
 export const MAX_MESSAGE_CHARS = 4000
 const TITLE_CHARS = 60
 
+export type ChatStore = Pick<Store, 'getSession' | 'createSession' | 'loadMessages' | 'appendMessages'>
+
 export type ChatDeps = {
   model: Model
   modelId: string
-  store: Store
+  store: ChatStore
   tools: () => Promise<Tools>
   allowedOrigins: string[]
 }
@@ -22,7 +24,8 @@ export type OpenResponse = (metadata: { statusCode: number; headers: Record<stri
 
 export function chatHandler(deps: ChatDeps) {
   return async (event: APIGatewayProxyEvent, open: OpenResponse) => {
-    const headers = { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store', ...cors(event, deps.allowedOrigins) }
+    const origin = event.headers?.origin ?? event.headers?.Origin
+    const headers = { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store', ...corsHeaders(origin, deps.allowedOrigins) }
     const fail = (statusCode: number, error: string) => {
       const out = open({ statusCode, headers: { ...headers, 'Content-Type': 'application/json' } })
       out.end(JSON.stringify({ error }))
@@ -85,10 +88,4 @@ function parseBody(event: APIGatewayProxyEvent): { sessionId?: string; message: 
   } catch {
     return undefined
   }
-}
-
-function cors(event: APIGatewayProxyEvent, allowed: string[]): Record<string, string> {
-  const origin = event.headers?.origin ?? event.headers?.Origin
-  if (!origin || !allowed.includes(origin)) return {}
-  return { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' }
 }
