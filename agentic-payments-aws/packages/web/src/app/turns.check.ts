@@ -3,8 +3,6 @@ import type { StreamLine } from '@agentic-aws/shared'
 import { readNdjson } from './api.ts'
 import { toTurns } from './turns.ts'
 
-// --- histórico salvo → turnos da tela ----------------------------------------------------------
-
 assert.deepEqual(
   toTurns([
     { role: 'user', content: [{ type: 'text', text: 'Quanto custa o PS5?' }] },
@@ -43,7 +41,6 @@ assert.deepEqual(
   ]
 )
 
-// Teto de rodadas: termina em tool_result, sem texto final.
 assert.deepEqual(
   toTurns([
     { role: 'user', content: [{ type: 'text', text: 'x' }] },
@@ -56,8 +53,6 @@ assert.deepEqual(
   ]
 )
 assert.deepEqual(toTurns([]), [])
-
-// --- NDJSON: linhas quebradas no meio de chunks e de caracteres UTF-8 ---------------------------
 
 const text = [
   { session: { id: 's1' } },
@@ -79,7 +74,6 @@ const lines: StreamLine[] = []
 await readNdjson(body, (l) => lines.push(l))
 assert.deepEqual(lines, JSON.parse(`[${text.trim().split('\n').join(',')}]`))
 
-// Última linha sem \n no final também é lida.
 const tail: StreamLine[] = []
 await readNdjson(new Response('{"done":true}').body!, (l) => tail.push(l))
 assert.deepEqual(tail, [{ done: true }])

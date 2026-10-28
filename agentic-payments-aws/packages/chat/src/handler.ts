@@ -11,7 +11,6 @@ const env = (name: string) => {
 }
 
 const REGION = process.env.BEDROCK_REGION ?? 'us-east-1'
-// bedrock-runtime (InvokeModelWithResponseStream). O Haiku 4.5 só roda por inference profile.
 const client = new AnthropicBedrock({ awsRegion: REGION })
 
 const chat = chatHandler({

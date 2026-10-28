@@ -27,7 +27,6 @@ export function shortName(name: string) {
   return at === -1 ? name : name.slice(at + SEP.length)
 }
 
-// Gateway com inbound auth AWS_IAM: toda requisição MCP vai assinada com SigV4.
 export function sigv4Fetch(
   region: string,
   credentials: SignatureV4Init['credentials'] = defaultProvider(),
@@ -96,7 +95,6 @@ export async function connectGateway(url: string, fetch: FetchLike): Promise<Too
   }
 }
 
-// Uma conexão por container quente. Se cair, a próxima invocação tenta de novo.
 let cached: Promise<Tools> | undefined
 
 export async function gatewayTools(url: string, region: string): Promise<Tools> {

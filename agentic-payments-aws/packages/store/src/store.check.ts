@@ -26,7 +26,6 @@ function fakeDb(reply: (cmd: Sent) => unknown = () => ({})) {
 
 const now = Math.floor(Date.now() / 1000)
 
-// createSession: um Put condicional, TTL contado da criação.
 {
   const { sent, db } = fakeDb()
   const session = await dynamoStore('T', 30, db).createSession('sub-a', 'Quanto custa o PS5?')
@@ -50,7 +49,6 @@ const now = Math.floor(Date.now() / 1000)
   })
 }
 
-// getSession: chave do dono; vencida conta como inexistente.
 {
   const item = { sessionId: 's1', title: 't', createdAt: 'c', updatedAt: 'u', lastSeq: 4, ttl: now + 100 }
   const { sent, db } = fakeDb(() => ({ Item: item }))
@@ -71,7 +69,6 @@ const now = Math.floor(Date.now() / 1000)
   assert.equal(await dynamoStore('T', 30, fakeDb(() => ({})).db).getSession('sub-a', 's1'), undefined)
 }
 
-// loadMessages: pagina e devolve o conteúdo exatamente como foi gravado.
 {
   const thinking = [{ type: 'thinking', thinking: '', signature: 'sig' }, { type: 'text', text: 'oi' }]
   const pages = [
@@ -90,7 +87,6 @@ const now = Math.floor(Date.now() / 1000)
   assert.deepEqual(sent[1]!.input.ExclusiveStartKey, { PK: 'x', SK: 'MSG#000001' })
 }
 
-// appendMessages: uma transação; lastSeq condicional + um Put por mensagem, numeração contínua.
 {
   const { sent, db } = fakeDb()
   const session = { id: 's1', title: 't', createdAt: 'c', updatedAt: 'u', lastSeq: 2, ttl: now + 100 }
@@ -119,7 +115,6 @@ const now = Math.floor(Date.now() / 1000)
   await assert.rejects(dynamoStore('T', 30, conflict.db).appendMessages('sub-a', session, []), ConcurrentTurn)
 }
 
-// listSessions: só do dono, sem as vencidas, mais recente primeiro, sem campos internos.
 {
   const s = (id: string, updatedAt: string, ttl = now + 100) => ({
     sessionId: id,
@@ -145,7 +140,6 @@ const now = Math.floor(Date.now() / 1000)
   assert.deepEqual(sent[1]!.input.ExclusiveStartKey, { k: 1 })
 }
 
-// deleteSession: sessão primeiro (condicional), depois as mensagens em lotes de 25.
 {
   const keys = Array.from({ length: 30 }, (_, i) => ({ PK: 'SESSION#s1', SK: `MSG#${String(i + 1).padStart(6, '0')}` }))
   let firstBatch = true

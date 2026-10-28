@@ -1,8 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import type { DisplayBlock, DisplayMessage } from '@agentic-aws/shared'
 
-// Do formato gravado (blocos do Claude) para o que a página mostra. Thinking e qualquer
-// bloco que a página não sabe desenhar ficam de fora.
 export function toDisplay(messages: Anthropic.MessageParam[]): DisplayMessage[] {
   const out: DisplayMessage[] = []
   for (const m of messages) {

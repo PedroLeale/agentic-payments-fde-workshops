@@ -10,7 +10,6 @@ assert.equal(shortName('catalog___list_items'), 'list_items')
 assert.equal(shortName('get_time'), 'get_time')
 assert.equal(shortName('a___b___c'), 'b___c')
 
-// SigV4: assina com o serviço do AgentCore, mantém corpo e headers, não manda Host à mão.
 {
   const sent: { url: string; init: RequestInit }[] = []
   const signedFetch = sigv4Fetch(
@@ -34,7 +33,6 @@ assert.equal(shortName('a___b___c'), 'b___c')
   await assert.rejects(signedFetch(url, { method: 'POST', body: new Uint8Array([1]) }), /only string bodies/)
 }
 
-// Cliente MCP contra um servidor MCP de verdade, com os nomes no formato do Gateway.
 {
   const calls: { name: string; args: unknown }[] = []
   const http = createServer(async (req, res) => {
@@ -70,7 +68,6 @@ assert.equal(shortName('a___b___c'), 'b___c')
     assert.deepEqual(await tools.call('list_items', { search: 'play' }), { result: { count: 1, items: [{ sku: 'PS5' }] }, isError: false })
     assert.deepEqual(calls.at(-1), { name: 'catalog___list_items', args: { search: 'play' } })
 
-    // A Lambda devolve { error } quando o argumento é ruim: vira is_error para o modelo.
     assert.deepEqual(await tools.call('get_time', { timezone: 'Mars/Olympus' }), {
       result: { error: 'unknown timezone: Mars/Olympus' },
       isError: true,

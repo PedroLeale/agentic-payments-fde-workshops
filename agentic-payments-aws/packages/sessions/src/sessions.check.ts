@@ -5,9 +5,6 @@ import type { Session } from '@agentic-aws/store'
 import { toDisplay } from './display.ts'
 import { sessionsHandler, type SessionsStore } from './sessions.ts'
 
-// --- projeção do histórico ------------------------------------------------------------------
-
-// Formato real gravado pela Lambda de chat: thinking + texto + tool_use, depois tool_result.
 const stored = [
   { role: 'user', content: 'Quanto custa o PS5?' },
   {
@@ -47,12 +44,9 @@ assert.deepEqual(toDisplay(stored), [
       { type: 'tool_result', toolUseId: 'tu2', content: '{"error":"x"}', isError: true },
     ],
   },
-  // a mensagem só com thinking some
   { role: 'assistant', content: [{ type: 'text', text: 'R$ 4.799,00' }] },
 ])
 assert.equal(JSON.stringify(toDisplay(stored)).includes('sig'), false)
-
-// --- rotas ------------------------------------------------------------------------------------
 
 function memoryStore() {
   const sessions = new Map<string, Session & { owner: string }>()
@@ -131,13 +125,11 @@ const json = (body: string) => (body ? JSON.parse(body) : undefined)
   const body = json(res.body)
   assert.deepEqual(body.session, { id: 's1', title: 't-s1', createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-02T00:00:00.000Z' })
   assert.deepEqual(body.messages, toDisplay(stored))
-  // Nada de lastSeq/ttl/owner vazando.
   assert.equal(JSON.stringify(body).includes('lastSeq'), false)
 }
 
 {
   const { handler, mem } = setup()
-  // Sessão de outro usuário: 404 tanto para ler quanto para apagar, e nada é apagado.
   assert.equal((await handler(event('GET', '/sessions/{id}/messages', { id: 's3' }))).statusCode, 404)
   assert.equal((await handler(event('DELETE', '/sessions/{id}', { id: 's3' }))).statusCode, 404)
   assert.ok(mem.sessions.has('s3'))

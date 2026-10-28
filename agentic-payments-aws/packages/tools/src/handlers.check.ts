@@ -18,7 +18,6 @@ assert.equal(ps5.count, 1)
 assert.equal(ps5.items[0]?.sku, 'PS5')
 assert.equal(((await listItemsHandler(undefined as never)) as { count: number }).count, 6)
 
-// Esquema que o Gateway publica tem que bater com o que as Lambdas aceitam.
 assert.deepEqual(schemas.map((s) => s.name), ['get_time', 'list_items'])
 for (const s of schemas) {
   assert.ok(s.description)

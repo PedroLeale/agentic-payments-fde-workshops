@@ -26,14 +26,10 @@ const MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
 const FOUNDATION_MODEL = 'anthropic.claude-haiku-4-5-20251001-v1:0'
 const PROFILE_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2']
 
-// Em todo recurso que aceita tag, para achar e apagar tudo do projeto depois
-// (`aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=agentic-payments-aws`).
 export const PROJECT_TAGS = { project: 'agentic-payments-aws', environment: 'poc', 'managed-by': 'cdk' }
 
 export type AgenticStackProps = StackProps & {
-  // Prefixo do domínio do login do Cognito; é global na região. Não pode conter "aws", "amazon" nem "cognito".
   loginDomainPrefix: string
-  // Saída do `next build` com export estático. Sem ela o stack sobe só o config.json.
   webDir?: string
 }
 
@@ -43,12 +39,8 @@ export class AgenticPaymentsStack extends Stack {
     if (/aws|amazon|cognito/i.test(props.loginDomainPrefix)) {
       throw new Error(`loginDomainPrefix "${props.loginDomainPrefix}" can't contain aws, amazon or cognito`)
     }
-    // Tags do stack (o CloudFormation propaga) e em cada recurso do CDK que aceita tag.
     for (const [key, value] of Object.entries(PROJECT_TAGS)) Tags.of(this).add(key, value)
 
-    // --- Dados ---------------------------------------------------------------------------------
-
-    // Uma tabela, chaves em packages/shared/src/keys.ts. Fica (RETAIN) num `cdk destroy`.
     const table = new dynamodb.TableV2(this, 'Chat', {
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
@@ -56,13 +48,10 @@ export class AgenticPaymentsStack extends Stack {
       timeToLiveAttribute: 'ttl',
     })
 
-    // --- Site (S3 privado + CloudFront com OAC) ------------------------------------------------
-
     const siteBucket = new s3.Bucket(this, 'Site', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
-      // Só tem o build do front, que se gera de novo.
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     })
@@ -79,9 +68,6 @@ export class AgenticPaymentsStack extends Stack {
     const siteUrl = `https://${distribution.distributionDomainName}`
     const allowedOrigins = [siteUrl, LOCAL_ORIGIN]
 
-    // --- Login (Cognito, managed login) ---------------------------------------------------------
-
-    // Sem auto-cadastro: usuários do PoC são criados por um admin.
     const userPool = new cognito.UserPool(this, 'Users', {
       selfSignUpEnabled: false,
       signInAliases: { email: true },
@@ -92,7 +78,6 @@ export class AgenticPaymentsStack extends Stack {
       managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
     })
     const redirectUrls = allowedOrigins.map((o) => `${o}/`)
-    // SPA: cliente público (sem secret), authorization code + PKCE.
     const webClient = userPool.addClient('Web', {
       generateSecret: false,
       preventUserExistenceErrors: true,
@@ -114,8 +99,6 @@ export class AgenticPaymentsStack extends Stack {
       useCognitoProvidedValues: true,
     })
 
-    // --- Lambdas ------------------------------------------------------------------------------
-
     const fn = (id: string, entry: string, props: Partial<nodejs.NodejsFunctionProps> = {}) =>
       new nodejs.NodejsFunction(this, id, {
         entry: path.join(ROOT, entry),
@@ -131,7 +114,6 @@ export class AgenticPaymentsStack extends Stack {
           format: nodejs.OutputFormat.ESM,
           target: 'node22',
           mainFields: ['module', 'main'],
-          // Versão fixa do SDK no pacote, não a que vier no runtime.
           bundleAwsSDK: true,
           // Dependências CommonJS dentro de um bundle ESM ainda chamam require.
           banner: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
@@ -141,8 +123,6 @@ export class AgenticPaymentsStack extends Stack {
 
     const getTimeFn = fn('GetTimeFn', 'packages/tools/src/get-time.ts', { memorySize: 256, timeout: Duration.seconds(10) })
     const listItemsFn = fn('ListItemsFn', 'packages/tools/src/list-items.ts', { memorySize: 256, timeout: Duration.seconds(10) })
-
-    // --- Ferramentas (AgentCore Gateway, MCP) ---------------------------------------------------
 
     // Inbound AWS_IAM: só quem tiver bedrock-agentcore:InvokeGateway chama. Sem isto o L2 cria um Cognito próprio.
     const gateway = new agentcore.Gateway(this, 'ToolsGateway', {
@@ -155,8 +135,6 @@ export class AgenticPaymentsStack extends Stack {
         supportedVersions: [agentcore.MCPProtocolVersion.MCP_2025_06_18, agentcore.MCPProtocolVersion.MCP_2025_03_26],
       }),
     })
-    // Um target por Lambda; o nome do target vira prefixo da ferramenta (time___get_time).
-    // addLambdaTarget já dá ao role do Gateway permissão de invocar a função.
     gateway.addLambdaTarget('TimeTarget', {
       gatewayTargetName: 'time',
       lambdaFunction: getTimeFn,
@@ -167,8 +145,6 @@ export class AgenticPaymentsStack extends Stack {
       lambdaFunction: listItemsFn,
       toolSchema: agentcore.ToolSchema.fromInline([toolDefinition('list_items')]),
     })
-
-    // --- Chat e sessões -------------------------------------------------------------------------
 
     const common = {
       TABLE_NAME: table.tableName,
@@ -201,14 +177,11 @@ export class AgenticPaymentsStack extends Stack {
     })
     table.grantReadWriteData(sessionsFn)
 
-    // --- API (REST, JWT do Cognito em todo método) ---------------------------------------------
-
     const api = new apigw.RestApi(this, 'Api', {
       restApiName: 'agentic-aws-chat',
       endpointTypes: [apigw.EndpointType.REGIONAL],
       deployOptions: {
         stageName: 'prod',
-        // Teto de custo do PoC: o chat chama o Bedrock a cada requisição.
         throttlingRateLimit: 10,
         throttlingBurstLimit: 20,
       },
@@ -249,9 +222,6 @@ export class AgenticPaymentsStack extends Stack {
     session.addMethod('DELETE', sessionsIntegration, auth)
     session.addResource('messages').addMethod('GET', sessionsIntegration, auth)
 
-    // --- Front ---------------------------------------------------------------------------------
-
-    // Configuração lida pela página em runtime: o mesmo build serve qualquer ambiente.
     const config = s3deploy.Source.jsonData('config.json', {
       apiUrl: api.url,
       region: this.region,
@@ -275,8 +245,6 @@ export class AgenticPaymentsStack extends Stack {
       }),
     })
 
-    // --- Saídas -------------------------------------------------------------------------------
-
     new CfnOutput(this, 'SiteUrl', { value: siteUrl })
     new CfnOutput(this, 'ApiUrl', { value: api.url })
     new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId })
@@ -286,8 +254,6 @@ export class AgenticPaymentsStack extends Stack {
     new CfnOutput(this, 'TableName', { value: table.tableName })
   }
 }
-
-// --- Esquemas das ferramentas: a mesma fonte que as Lambdas testam (tool-schemas.json) --------
 
 // `| undefined` porque o TypeScript infere o array do JSON como união (`search?: undefined`).
 type JsonSchema = {

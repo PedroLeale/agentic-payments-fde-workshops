@@ -8,8 +8,6 @@ import { ConcurrentTurn, type Session } from '@agentic-aws/store'
 import { MAX_ROUNDS, type Model } from './turn.ts'
 import { SYSTEM } from './prompt.ts'
 
-// --- fakes -------------------------------------------------------------------------------
-
 const msg = (stop_reason: string, ...content: unknown[]) =>
   ({ id: 'msg', type: 'message', role: 'assistant', content, stop_reason, usage: { input_tokens: 10, output_tokens: 5 } }) as unknown as Anthropic.Message
 const text = (t: string) => ({ type: 'text', text: t, citations: null })
@@ -122,8 +120,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   return { chat: chatHandler(deps), calls: m.calls, mem, tools }
 }
 
-// --- resposta simples ------------------------------------------------------------------
-
 {
   const { chat, calls, mem } = setup([msg('end_turn', thinking, text('Olá! '), text('Como posso ajudar?'))])
   const out = capture()
@@ -139,7 +135,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
     { done: true },
   ])
 
-  // Parâmetros do modelo: id do inference profile e system prompt no servidor.
   const p = calls[0]!
   assert.equal(p.model, 'us.anthropic.claude-haiku-4-5-20251001-v1:0')
   assert.equal(p.system, SYSTEM)
@@ -149,15 +144,12 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   assert.deepEqual(p.tools, [listItems])
   assert.deepEqual(p.messages, [{ role: 'user', content: 'oi' }])
 
-  // Gravado: a mensagem do usuário e o conteúdo do assistente intacto, thinking incluído.
   assert.deepEqual(mem.messages.get('s1'), [
     { role: 'user', content: 'oi' },
     { role: 'assistant', content: [thinking, text('Olá! '), text('Como posso ajudar?')] },
   ])
   assert.equal(mem.sessions.get('s1')!.title, 'oi')
 }
-
-// --- ferramenta, depois continuação na mesma sessão -------------------------------------
 
 {
   const { chat, calls, mem, tools } = setup([
@@ -178,7 +170,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
     { name: 'get_time', input: {} },
   ])
 
-  // Segunda rodada recebeu o tool_use e todos os tool_result numa mensagem só.
   const second = calls[1]!.messages
   assert.equal(second.length, 3)
   assert.deepEqual(second[2], {
@@ -190,7 +181,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   })
   assert.equal(mem.messages.get('s1')!.length, 4)
 
-  // Próximo turno com sessionId: o histórico inteiro vai para o modelo, sem edição.
   const stored = structuredClone(mem.messages.get('s1')!)
   const out2 = capture()
   await chat(event({ sessionId: 's1', message: 'Obrigado' }), out2.open)
@@ -199,8 +189,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   assert.equal(mem.messages.get('s1')!.length, 6)
   assert.equal(mem.sessions.get('s1')!.lastSeq, 6)
 }
-
-// --- teto de rodadas ---------------------------------------------------------------------
 
 {
   const loop = Array.from({ length: MAX_ROUNDS + 1 }, (_, i) => msg('tool_use', toolUse(`tu${i}`, 'list_items', {})))
@@ -212,8 +200,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   // user + (assistant, tool_result) por rodada
   assert.equal(mem.messages.get('s1')!.length, 1 + 2 * MAX_ROUNDS)
 }
-
-// --- falhas que viram linha de erro e não gravam nada -----------------------------------
 
 {
   const { chat, mem } = setup([msg('refusal', text('...'))])
@@ -250,8 +236,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   assert.deepEqual(out.lines().at(-1), { error: 'erro interno', done: true })
 }
 
-// --- Gateway fora do ar: responde sem ferramentas ----------------------------------------
-
 {
   const { chat, calls } = setup([msg('end_turn', text('oi'))], {
     tools: async () => {
@@ -263,8 +247,6 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   assert.deepEqual(out.lines().at(-1), { done: true })
   assert.equal(calls[0]!.tools, undefined)
 }
-
-// --- validação e dono da sessão ----------------------------------------------------------
 
 async function status(e: APIGatewayProxyEvent, deps?: ReturnType<typeof setup>) {
   const { chat, calls } = deps ?? setup([])

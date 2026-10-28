@@ -60,7 +60,6 @@ export function dynamoStore(
 ): Store {
   const now = () => Math.floor(Date.now() / 1000)
 
-  // BatchWrite pode devolver parte dos itens como não processados (throttling); tenta de novo.
   async function deleteKeys(keys: { PK: string; SK: string }[]) {
     let pending = keys.map((Key) => ({ DeleteRequest: { Key } }))
     for (let attempt = 0; pending.length > 0; attempt++) {

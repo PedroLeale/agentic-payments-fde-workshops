@@ -8,7 +8,6 @@ export class ApiError extends Error {
   }
 }
 
-// `token` devolve o ID token do Cognito; é o que o authorizer do API Gateway valida.
 export function apiClient(apiUrl: string, token: () => Promise<string>) {
   async function request(path: string, init: RequestInit = {}) {
     const res = await fetch(new URL(path, apiUrl), {

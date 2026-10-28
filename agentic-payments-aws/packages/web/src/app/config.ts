@@ -1,5 +1,3 @@
-// Lida em runtime: em produção o CDK publica /config.json junto do site, então o mesmo build
-// serve qualquer ambiente. Em dev, `npm run config:local` gera public/config.local.json.
 export type AppConfig = {
   apiUrl: string
   region: string

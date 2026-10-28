@@ -3,7 +3,6 @@ import type { StreamLine } from '@agentic-aws/shared'
 import type { Tools } from './gateway.ts'
 import { SYSTEM } from './prompt.ts'
 
-// Sem teto o modelo pode ficar chamando ferramenta para sempre.
 export const MAX_ROUNDS = 4
 
 export interface ModelStream {
@@ -31,8 +30,6 @@ export type TurnOutput = {
   usage: { input: number; output: number; cacheRead: number }
 }
 
-// Um turno: a mensagem do usuário e tudo que o modelo e as ferramentas produziram até ele
-// parar de pedir ferramenta. Só é gravado se terminar sem erro.
 export async function runTurn({ model, modelId, tools, history, userText, emit }: TurnInput): Promise<TurnOutput> {
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: userText }]
   const usage = { input: 0, output: 0, cacheRead: 0 }
@@ -40,12 +37,10 @@ export async function runTurn({ model, modelId, tools, history, userText, emit }
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     const stream = model({
       model: modelId,
-      // Teto do Haiku 4.5.
       max_tokens: 64000,
       system: SYSTEM,
       ...(tools.definitions.length > 0 && { tools: tools.definitions }),
-      // Haiku 4.5: sem `effort` (dá 400) e sem `cache_control` no topo (a integração
-      // bedrock-runtime recusa); o prompt fixo é pequeno demais para o cache de qualquer jeito.
+      // Haiku 4.5 recusa `effort` e o bedrock-runtime recusa `cache_control` no topo.
       messages: [...history, ...messages],
     })
     stream.on('text', (delta) => emit({ message: { role: 'assistant', content: delta } }))

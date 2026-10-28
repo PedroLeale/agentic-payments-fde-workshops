@@ -3,10 +3,8 @@ import type { DisplayMessage } from '@agentic-aws/shared'
 export type ToolRun = { name: string; arguments: unknown; result: unknown }
 export type Turn = { role: 'user' | 'assistant'; content: string; tools?: ToolRun[] }
 
-// Histórico salvo → o que a tela mostra, igual ao que o streaming produziria: cada mensagem de
-// texto do usuário abre um turno; as ferramentas ficam no turno do usuário (painel lateral);
-// o texto do assistente é o da última mensagem com texto, já que o stream zera o texto
-// quando uma ferramenta é chamada.
+// Igual ao que o streaming produziria: o texto do assistente é o da última mensagem com texto,
+// porque o stream zera o texto quando uma ferramenta é chamada.
 export function toTurns(messages: DisplayMessage[]): Turn[] {
   const turns: Turn[] = []
   const pending = new Map<string, ToolRun>()

@@ -21,8 +21,6 @@ const statements = (roleId: string) =>
 const actions = (roleId: string) => statements(roleId).flatMap((s) => [s.Action].flat())
 const gatewayId = ofType('AWS::BedrockAgentCore::Gateway')[0]![0]
 
-// --- API: JWT do Cognito em tudo, menos no preflight de CORS ------------------------------------
-
 for (const [, m] of ofType('AWS::ApiGateway::Method')) {
   const expected = m.Properties.HttpMethod === 'OPTIONS' ? 'NONE' : 'COGNITO_USER_POOLS'
   assert.equal(m.Properties.AuthorizationType, expected, `${m.Properties.HttpMethod} auth`)
@@ -39,8 +37,6 @@ template.hasResourceProperties('AWS::ApiGateway::Stage', {
 })
 template.resourceCountIs('AWS::ApiGateway::GatewayResponse', 2)
 
-// --- Gateway: IAM na entrada, sem busca semântica, um target por ferramenta ------------------
-
 const gw = resources[gatewayId]!.Properties
 assert.equal(gw.AuthorizerType, 'AWS_IAM')
 assert.equal(gw.ProtocolType, 'MCP')
@@ -52,7 +48,6 @@ const targets = Object.fromEntries(
 assert.deepEqual(Object.keys(targets).sort(), ['catalog', 'time'])
 assert.deepEqual(targets.time.LambdaArn, { 'Fn::GetAtt': [fnId('GetTimeFn'), 'Arn'] })
 assert.deepEqual(targets.catalog.LambdaArn, { 'Fn::GetAtt': [fnId('ListItemsFn'), 'Arn'] })
-// Mesmo esquema que as Lambdas testam em tool-schemas.json.
 for (const [target, tool] of [['time', 'get_time'], ['catalog', 'list_items']] as const) {
   const [published] = targets[target].ToolSchema.InlinePayload
   const source = toolSchemas.find((t) => t.name === tool)!
@@ -61,12 +56,9 @@ for (const [target, tool] of [['time', 'get_time'], ['catalog', 'list_items']] a
   assert.deepEqual(Object.keys(published.InputSchema.Properties), Object.keys(source.inputSchema.properties))
 }
 
-// --- Permissões: cada função só com o que usa ------------------------------------------------
-
 const chatRole = roleOf('ChatFn')
 const invokeGateway = statements(chatRole).find((s) => [s.Action].flat().includes('bedrock-agentcore:InvokeGateway'))!
 assert.deepEqual(invokeGateway.Resource, { 'Fn::GetAtt': [gatewayId, 'GatewayArn'] })
-// Bedrock só no inference profile us. do Haiku 4.5 e no modelo das regiões dele; nada em "*".
 const bedrock = statements(chatRole).filter((s) => [s.Action].flat().some((a) => a.startsWith('bedrock:')))
 assert.equal(bedrock.length, 1)
 assert.deepEqual([bedrock[0]!.Action].flat().sort(), ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'])
@@ -96,8 +88,6 @@ const invoked = JSON.stringify(invokes.map((s) => s.Resource))
 assert.ok(invoked.includes(fnId('GetTimeFn')) && invoked.includes(fnId('ListItemsFn')))
 assert.ok(!invoked.includes(fnId('ChatFn')) && !invoked.includes(fnId('SessionsFn')))
 
-// --- Lambdas ----------------------------------------------------------------------------------
-
 for (const [, f] of ofType('AWS::Lambda::Function').filter(([id]) => /^(Chat|Sessions|GetTime|ListItems)Fn/.test(id))) {
   assert.equal(f.Properties.Runtime, 'nodejs22.x')
   assert.deepEqual(f.Properties.Architectures, ['arm64'])
@@ -107,8 +97,6 @@ assert.equal(chatEnv.MODEL_ID, 'us.anthropic.claude-haiku-4-5-20251001-v1:0')
 assert.deepEqual(chatEnv.GATEWAY_URL, { 'Fn::GetAtt': [gatewayId, 'GatewayUrl'] })
 assert.equal(resources[fnId('ChatFn')]!.Properties.Timeout, 300)
 
-// --- Dados ------------------------------------------------------------------------------------
-
 template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
   KeySchema: [
     { AttributeName: 'PK', KeyType: 'HASH' },
@@ -117,8 +105,6 @@ template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
   TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },
   BillingMode: 'PAY_PER_REQUEST',
 })
-
-// --- Login ------------------------------------------------------------------------------------
 
 template.hasResourceProperties('AWS::Cognito::UserPool', { AdminCreateUserConfig: { AllowAdminCreateUserOnly: true } })
 template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
@@ -136,8 +122,6 @@ assert.throws(
   /can't contain aws, amazon or cognito/
 )
 
-// --- Site: bucket privado, só o CloudFront (OAC) lê --------------------------------------------
-
 template.hasResourceProperties('AWS::S3::Bucket', {
   PublicAccessBlockConfiguration: {
     BlockPublicAcls: true,
@@ -153,20 +137,14 @@ template.hasResourceProperties('AWS::CloudFront::Distribution', {
   }),
 })
 
-// --- O que sobrevive a um `cdk destroy` (o README promete isto) ---------------------------------
-
 const deletion = (type: string) => ofType(type).map(([, r]) => (r as { DeletionPolicy?: string }).DeletionPolicy)
 assert.deepEqual(deletion('AWS::DynamoDB::GlobalTable'), ['Retain'])
 assert.deepEqual(deletion('AWS::Cognito::UserPool'), ['Retain'])
 assert.deepEqual(deletion('AWS::S3::Bucket'), ['Delete'])
-// Todos os log groups do template somem no destroy, inclusive o da Lambda do BucketDeployment.
 assert.ok(deletion('AWS::Logs::LogGroup').length >= 5)
 assert.ok(deletion('AWS::Logs::LogGroup').every((p) => p === 'Delete'))
 
-// --- Tags do projeto ------------------------------------------------------------------------------
-
 const PROJECT = { Key: 'project', Value: 'agentic-payments-aws' }
-// Tudo o que guarda dado ou custa dinheiro, e os roles.
 for (const type of [
   'AWS::Lambda::Function',
   'AWS::IAM::Role',
@@ -190,7 +168,6 @@ assert.equal(resources[ofType('AWS::Cognito::UserPool')[0]![0]]!.Properties.User
 assert.equal(resources[gatewayId]!.Properties.Tags.project, PROJECT.Value)
 const table = ofType('AWS::DynamoDB::GlobalTable')[0]![1].Properties
 assert.ok(table.Replicas[0].Tags.some((t: { Key: string; Value: string }) => t.Key === 'project' && t.Value === PROJECT.Value))
-// Tags no nível do stack: o CloudFormation propaga para o que o CDK não marcou.
 assert.deepEqual(stack.tags.tagValues(), { environment: 'poc', 'managed-by': 'cdk', project: 'agentic-payments-aws' })
 
 console.log('stack.ts ok')

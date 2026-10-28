@@ -18,8 +18,7 @@ export type ChatDeps = {
   allowedOrigins: string[]
 }
 
-// Abre a resposta HTTP: na Lambda é o HttpResponseStream.from, que escreve os metadados
-// e os 8 bytes nulos que o API Gateway exige antes do corpo.
+// Na Lambda é o HttpResponseStream.from: escreve os metadados e os 8 bytes nulos que o API Gateway exige.
 export type OpenResponse = (metadata: { statusCode: number; headers: Record<string, string> }) => Writable
 
 export function chatHandler(deps: ChatDeps) {
@@ -52,7 +51,6 @@ export function chatHandler(deps: ChatDeps) {
     try {
       const history = await deps.store.loadMessages(session.id)
       const tools = await deps.tools().catch((err) => {
-        // Igual ao ollama-chat: sem servidor de ferramentas o chat responde sem elas.
         console.error(JSON.stringify({ msg: 'gateway unavailable', err: String(err) }))
         return NO_TOOLS
       })

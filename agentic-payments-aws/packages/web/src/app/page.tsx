@@ -17,8 +17,6 @@ export default function Page() {
     loadConfig().then(setConfig, (err) => setError(String(err)))
   }, [])
 
-  // Um UserManager só, criado quando a config chega (no navegador). A API pede o token
-  // direto a ele, sem depender de estado do React.
   const userManager = useMemo(() => {
     if (!config) return null
     const home = `${window.location.origin}/`
@@ -81,7 +79,6 @@ function Chat({ config, userManager }: ChatProps) {
   const client = useMemo(
     () =>
       apiClient(config.apiUrl, async () => {
-        // O ID token vale 1h; renova pelo refresh token antes de chamar a API.
         let user = await userManager.getUser()
         if (!user || user.expired) user = await userManager.signinSilent()
         if (!user?.id_token) throw new Error('sessão expirada, entre de novo')
@@ -162,7 +159,6 @@ function Chat({ config, userManager }: ChatProps) {
 
     let reply = ''
     try {
-      // Só a mensagem nova vai para o servidor; o histórico está no DynamoDB.
       await client.chat({ sessionId: activeId ?? undefined, message: text }, (line) => {
         if ('session' in line) return setActiveId(line.session.id)
         if ('error' in line) throw new Error(line.error)
