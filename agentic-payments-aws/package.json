@@ -15,7 +15,10 @@
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
-    "dev:web": "npm run dev --workspace @agentic-aws/web"
+    "dev:web": "npm run dev --workspace @agentic-aws/web",
+    "build:web": "npm run build -w @agentic-aws/web",
+    "synth": "npm run build:web && npm run cdk -w @agentic-aws/infra -- synth --quiet",
+    "deploy": "npm run build:web && npm run cdk -w @agentic-aws/infra -- deploy"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

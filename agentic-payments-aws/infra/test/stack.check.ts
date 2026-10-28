@@ -140,4 +140,11 @@ template.hasResourceProperties('AWS::CloudFront::Distribution', {
   }),
 })
 
+// --- O que sobrevive a um `cdk destroy` (o README promete isto) ---------------------------------
+
+const deletion = (type: string) => ofType(type).map(([, r]) => (r as { DeletionPolicy?: string }).DeletionPolicy)
+assert.deepEqual(deletion('AWS::DynamoDB::GlobalTable'), ['Retain'])
+assert.deepEqual(deletion('AWS::Cognito::UserPool'), ['Retain'])
+assert.deepEqual(deletion('AWS::S3::Bucket'), ['Delete'])
+
 console.log('stack.ts ok')
