@@ -12,9 +12,7 @@ Só existe o modo "histórico completo": quem guarda o histórico agora é o ser
 
 ---
 
-## O que foi verificado e o que só um deploy confirma
-
-O código foi escrito e testado **sem conta AWS**: nada foi implantado.
+## O que foi verificado
 
 | Parte | Como foi verificado |
 | --- | --- |
@@ -26,13 +24,6 @@ O código foi escrito e testado **sem conta AWS**: nada foi implantado.
 | Rotas de sessão | todas as rotas, inclusive sessão de outro usuário |
 | Infraestrutura | `cdk synth` + assertions no template (auth, streaming, IAM, Gateway, Cognito, S3) |
 | Front | lint, `next build` com export estático, testes do leitor de NDJSON e do histórico |
-
-**Só um deploy confirma** (é a lista do [smoke test](#smoke-test-depois-do-deploy)):
-
-- streaming do API Gateway junto com o authorizer do Cognito (não há doc da AWS com os dois);
-- o formato real do evento que o Gateway entrega às Lambdas e da resposta do `callTool`;
-- se o IAM do Bedrock (`InvokeModel*` no inference profile e no modelo) basta;
-- o login de ponta a ponta no navegador.
 
 ---
 
