@@ -1,0 +1,22 @@
+{
+  "name": "@agentic-aws/infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CDK: DynamoDB, Lambdas, AgentCore Gateway, API Gateway com streaming, Cognito, S3 + CloudFront",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "aws-cdk": "^2.1146.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.275.0",
+    "constructs": "^10.8.1"
+  },
+  "scripts": {
+    "check": "tsx test/stack.check.ts && tsc --noEmit",
+    "synth": "cdk synth",
+    "cdk": "cdk"
+  }
+}

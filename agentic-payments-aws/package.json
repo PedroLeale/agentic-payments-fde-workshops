@@ -10,7 +10,8 @@
     "packages/tools",
     "packages/chat",
     "packages/sessions",
-    "packages/web"
+    "packages/web",
+    "infra"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
