@@ -5,8 +5,8 @@ import { AgenticPaymentsStack } from '../lib/stack.ts'
 const app = new App()
 
 new AgenticPaymentsStack(app, 'AgenticPaymentsAws', {
-  // Claude Haiku 5.5 no Bedrock em us-east-1; o resto vai junto.
+  // Claude Haiku 4.5 pelo inference profile us. a partir de us-east-1; o resto vai junto.
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: 'us-east-1' },
-  loginDomainPrefix: app.node.tryGetContext('loginDomainPrefix') ?? 'agentic-pay-poc',
+  loginDomainPrefix: app.node.tryGetContext('loginDomainPrefix') ?? 'agentic-pay-poc-fellowship',
   webDir: fileURLToPath(new URL('../../packages/web/out', import.meta.url)),
 })

@@ -66,7 +66,20 @@ for (const [target, tool] of [['time', 'get_time'], ['catalog', 'list_items']] a
 const chatRole = roleOf('ChatFn')
 const invokeGateway = statements(chatRole).find((s) => [s.Action].flat().includes('bedrock-agentcore:InvokeGateway'))!
 assert.deepEqual(invokeGateway.Resource, { 'Fn::GetAtt': [gatewayId, 'GatewayArn'] })
-assert.ok(actions(chatRole).includes('bedrock-mantle:CreateInference'))
+// Bedrock só no inference profile us. do Haiku 4.5 e no modelo das regiões dele; nada em "*".
+const bedrock = statements(chatRole).filter((s) => [s.Action].flat().some((a) => a.startsWith('bedrock:')))
+assert.equal(bedrock.length, 1)
+assert.deepEqual([bedrock[0]!.Action].flat().sort(), ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'])
+const bedrockResources = JSON.stringify(bedrock[0]!.Resource)
+for (const region of ['us-east-1', 'us-east-2', 'us-west-2']) {
+  assert.ok(
+    bedrockResources.includes(`:bedrock:${region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`),
+    `${region} missing in ${bedrockResources}`
+  )
+}
+assert.ok(bedrockResources.includes(':inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0'))
+assert.ok(!statements(chatRole).some((s) => JSON.stringify(s.Resource) === '"*"'))
+assert.ok(!actions(chatRole).some((a) => a.startsWith('bedrock-mantle:')))
 assert.ok(actions(chatRole).some((a) => a.startsWith('dynamodb:')))
 
 const sessionsRole = roleOf('SessionsFn')
@@ -90,7 +103,7 @@ for (const [, f] of ofType('AWS::Lambda::Function').filter(([id]) => /^(Chat|Ses
   assert.deepEqual(f.Properties.Architectures, ['arm64'])
 }
 const chatEnv = resources[fnId('ChatFn')]!.Properties.Environment.Variables
-assert.equal(chatEnv.MODEL_ID, 'anthropic.claude-haiku-5-5')
+assert.equal(chatEnv.MODEL_ID, 'us.anthropic.claude-haiku-4-5-20251001-v1:0')
 assert.deepEqual(chatEnv.GATEWAY_URL, { 'Fn::GetAtt': [gatewayId, 'GatewayUrl'] })
 assert.equal(resources[fnId('ChatFn')]!.Properties.Timeout, 300)
 
@@ -146,5 +159,38 @@ const deletion = (type: string) => ofType(type).map(([, r]) => (r as { DeletionP
 assert.deepEqual(deletion('AWS::DynamoDB::GlobalTable'), ['Retain'])
 assert.deepEqual(deletion('AWS::Cognito::UserPool'), ['Retain'])
 assert.deepEqual(deletion('AWS::S3::Bucket'), ['Delete'])
+// Todos os log groups do template somem no destroy, inclusive o da Lambda do BucketDeployment.
+assert.ok(deletion('AWS::Logs::LogGroup').length >= 5)
+assert.ok(deletion('AWS::Logs::LogGroup').every((p) => p === 'Delete'))
+
+// --- Tags do projeto ------------------------------------------------------------------------------
+
+const PROJECT = { Key: 'project', Value: 'agentic-payments-aws' }
+// Tudo o que guarda dado ou custa dinheiro, e os roles.
+for (const type of [
+  'AWS::Lambda::Function',
+  'AWS::IAM::Role',
+  'AWS::Logs::LogGroup',
+  'AWS::S3::Bucket',
+  'AWS::CloudFront::Distribution',
+  'AWS::ApiGateway::RestApi',
+  'AWS::ApiGateway::Stage',
+]) {
+  for (const [id, r] of ofType(type)) {
+    // A Lambda/role do auto-delete do S3 é um recurso cru sem Tags; recebe as tags do stack.
+    if (id.startsWith('CustomS3AutoDeleteObjects')) continue
+    const tags = r.Properties.Tags ?? r.Properties.DistributionConfig?.Tags
+    assert.ok(
+      tags?.some((t: { Key: string; Value: string }) => t.Key === PROJECT.Key && t.Value === PROJECT.Value),
+      `${type} ${id} without project tag`
+    )
+  }
+}
+assert.equal(resources[ofType('AWS::Cognito::UserPool')[0]![0]]!.Properties.UserPoolTags.project, PROJECT.Value)
+assert.equal(resources[gatewayId]!.Properties.Tags.project, PROJECT.Value)
+const table = ofType('AWS::DynamoDB::GlobalTable')[0]![1].Properties
+assert.ok(table.Replicas[0].Tags.some((t: { Key: string; Value: string }) => t.Key === 'project' && t.Value === PROJECT.Value))
+// Tags no nível do stack: o CloudFormation propaga para o que o CDK não marcou.
+assert.deepEqual(stack.tags.tagValues(), { environment: 'poc', 'managed-by': 'cdk', project: 'agentic-payments-aws' })
 
 console.log('stack.ts ok')

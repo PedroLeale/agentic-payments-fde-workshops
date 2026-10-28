@@ -113,7 +113,7 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
   const tools = fakeTools()
   const deps: ChatDeps = {
     model: m.model,
-    modelId: 'anthropic.claude-haiku-5-5',
+    modelId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     store: mem.store,
     tools: async () => tools,
     allowedOrigins: ['https://chat.example.com'],
@@ -139,12 +139,13 @@ function setup(script: Anthropic.Message[], overrides: Partial<ChatDeps> = {}) {
     { done: true },
   ])
 
-  // Parâmetros do modelo: id, system no servidor, esforço baixo, cache automático.
+  // Parâmetros do modelo: id do inference profile e system prompt no servidor.
   const p = calls[0]!
-  assert.equal(p.model, 'anthropic.claude-haiku-5-5')
+  assert.equal(p.model, 'us.anthropic.claude-haiku-4-5-20251001-v1:0')
   assert.equal(p.system, SYSTEM)
-  assert.deepEqual(p.output_config, { effort: 'low' })
-  assert.deepEqual(p.cache_control, { type: 'ephemeral' })
+  // Haiku 4.5 recusa `effort`; bedrock-runtime recusa `cache_control` no topo.
+  assert.equal(p.output_config, undefined)
+  assert.equal(p.cache_control, undefined)
   assert.deepEqual(p.tools, [listItems])
   assert.deepEqual(p.messages, [{ role: 'user', content: 'oi' }])
 

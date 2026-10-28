@@ -40,12 +40,13 @@ export async function runTurn({ model, modelId, tools, history, userText, emit }
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     const stream = model({
       model: modelId,
+      // Teto do Haiku 4.5.
       max_tokens: 64000,
       system: SYSTEM,
       ...(tools.definitions.length > 0 && { tools: tools.definitions }),
+      // Haiku 4.5: sem `effort` (dá 400) e sem `cache_control` no topo (a integração
+      // bedrock-runtime recusa); o prompt fixo é pequeno demais para o cache de qualquer jeito.
       messages: [...history, ...messages],
-      output_config: { effort: 'low' },
-      cache_control: { type: 'ephemeral' },
     })
     stream.on('text', (delta) => emit({ message: { role: 'assistant', content: delta } }))
     const message = await stream.finalMessage()

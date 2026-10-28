@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "PoC: chat com Claude Haiku 5.5 no Bedrock, ferramentas em Lambda via AgentCore Gateway, historico no DynamoDB",
+  "description": "PoC: chat com Claude Haiku 4.5 no Bedrock, ferramentas em Lambda via AgentCore Gateway, historico no DynamoDB",
   "workspaces": [
     "packages/shared",
     "packages/store",

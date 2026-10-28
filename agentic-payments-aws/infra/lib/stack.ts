@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Annotations, CfnOutput, Duration, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib'
+import { Annotations, CfnOutput, Duration, RemovalPolicy, Stack, Tags, type StackProps } from 'aws-cdk-lib'
 import * as apigw from 'aws-cdk-lib/aws-apigateway'
 import * as agentcore from 'aws-cdk-lib/aws-bedrockagentcore'
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront'
@@ -18,8 +18,17 @@ import type { Construct } from 'constructs'
 import toolSchemas from '../../packages/tools/src/tool-schemas.json' with { type: 'json' }
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
-const MODEL_ID = 'anthropic.claude-haiku-5-5'
 const LOCAL_ORIGIN = 'http://localhost:3000'
+
+// Claude Haiku 4.5 só roda por inference profile. O `us.` mantém a inferência nas regiões dos
+// EUA listadas abaixo (o `global.` poderia mandar a conversa para qualquer região).
+const MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+const FOUNDATION_MODEL = 'anthropic.claude-haiku-4-5-20251001-v1:0'
+const PROFILE_REGIONS = ['us-east-1', 'us-east-2', 'us-west-2']
+
+// Em todo recurso que aceita tag, para achar e apagar tudo do projeto depois
+// (`aws resourcegroupstaggingapi get-resources --tag-filters Key=project,Values=agentic-payments-aws`).
+export const PROJECT_TAGS = { project: 'agentic-payments-aws', environment: 'poc', 'managed-by': 'cdk' }
 
 export type AgenticStackProps = StackProps & {
   // Prefixo do domínio do login do Cognito; é global na região. Não pode conter "aws", "amazon" nem "cognito".
@@ -30,10 +39,12 @@ export type AgenticStackProps = StackProps & {
 
 export class AgenticPaymentsStack extends Stack {
   constructor(scope: Construct, id: string, props: AgenticStackProps) {
-    super(scope, id, props)
+    super(scope, id, { ...props, tags: { ...PROJECT_TAGS, ...props.tags } })
     if (/aws|amazon|cognito/i.test(props.loginDomainPrefix)) {
       throw new Error(`loginDomainPrefix "${props.loginDomainPrefix}" can't contain aws, amazon or cognito`)
     }
+    // Tags do stack (o CloudFormation propaga) e em cada recurso do CDK que aceita tag.
+    for (const [key, value] of Object.entries(PROJECT_TAGS)) Tags.of(this).add(key, value)
 
     // --- Dados ---------------------------------------------------------------------------------
 
@@ -172,17 +183,14 @@ export class AgenticPaymentsStack extends Stack {
     })
     table.grantReadWriteData(chatFn)
     gateway.grantInvoke(chatFn)
-    // Claude no Bedrock pelo endpoint bedrock-mantle (Messages API). A doc da AWS só traz
-    // exemplo com Resource "*" para estas ações.
+    // Inference profile: a permissão vale no profile e no modelo de cada região para onde ele roteia.
     chatFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: [
-          'bedrock-mantle:CreateInference',
-          'bedrock-mantle:GetProject',
-          'bedrock-mantle:ListProjects',
-          'bedrock-mantle:ListTagsForResources',
+        actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+        resources: [
+          this.formatArn({ service: 'bedrock', resource: 'inference-profile', resourceName: MODEL_ID }),
+          ...PROFILE_REGIONS.map((r) => `arn:${this.partition}:bedrock:${r}::foundation-model/${FOUNDATION_MODEL}`),
         ],
-        resources: ['*'],
       })
     )
 
@@ -260,6 +268,11 @@ export class AgenticPaymentsStack extends Stack {
       destinationBucket: siteBucket,
       distribution,
       distributionPaths: ['/*'],
+      // Sem isto o CDK cria o log group dessa Lambda auxiliar com Retain e 2 anos de retenção.
+      logGroup: new logs.LogGroup(this, 'DeploySiteLogs', {
+        retention: logs.RetentionDays.TWO_WEEKS,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
     })
 
     // --- Saídas -------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 PoC que leva o `ollama-chat` + `ollama-tools` para a AWS:
 
-- o modelo local vira **Claude Haiku 5.5 no Amazon Bedrock** (us-east-1);
+- o modelo local vira **Claude Haiku 4.5 no Amazon Bedrock**;
 - cada ferramenta vira **uma Lambda**, publicada como MCP pelo **AgentCore Gateway**;
 - a rota do Next.js vira uma **Lambda com streaming** atrás do **API Gateway**;
 - a memória sai do navegador e vai para o **DynamoDB** (uma sessão por conversa);
@@ -31,7 +31,7 @@ O código foi escrito e testado **sem conta AWS**: nada foi implantado.
 
 - streaming do API Gateway junto com o authorizer do Cognito (não há doc da AWS com os dois);
 - o formato real do evento que o Gateway entrega às Lambdas e da resposta do `callTool`;
-- se o IAM do `bedrock-mantle` basta para a Messages API;
+- se o IAM do Bedrock (`InvokeModel*` no inference profile e no modelo) basta;
 - o login de ponta a ponta no navegador.
 
 ---
@@ -54,7 +54,7 @@ API Gateway REST (us-east-1, authorizer do Cognito em todo método, 10 req/s)
 chat-fn ──MCP + SigV4──▶ AgentCore Gateway (inbound AWS_IAM)
    │                         ├─ target "time"    → get-time-fn
    │                         └─ target "catalog" → list-items-fn
-   ├─ Bedrock (bedrock-mantle): anthropic.claude-haiku-5-5
+   ├─ Bedrock (bedrock-runtime): us.anthropic.claude-haiku-4-5-20251001-v1:0
    └─ DynamoDB: lê o histórico, grava o turno
 ```
 
@@ -67,10 +67,9 @@ chat-fn ──MCP + SigV4──▶ AgentCore Gateway (inbound AWS_IAM)
 4. se o modelo pedir ferramenta, chama via MCP, manda `{"tool":...}` e repete (até 4 rodadas);
 5. grava o turno inteiro numa transação e fecha com `{"done":true}`.
 
-**Por que o histórico é gravado assim:** o Claude Haiku 5.5 devolve blocos de thinking, e
-editar mensagens antigas invalida esses blocos. Então cada mensagem é gravada **exatamente
-como veio** (thinking, `tool_use`, `tool_result`), só se acrescenta, e um turno que falha
-(recusa, erro, corte) não grava nada. O TTL de 30 dias conta da criação da sessão, para a
+**Por que o histórico é gravado assim:** cada mensagem é gravada **exatamente como veio** do
+modelo, só se acrescenta, e um turno que falha (recusa, erro, corte) não grava nada, para o
+histórico nunca ficar com meio turno. O TTL de 30 dias conta da criação da sessão, para a
 conversa inteira vencer de uma vez.
 
 ---
@@ -106,20 +105,18 @@ npm run synth      # build do front + cdk synth (não precisa de credencial AWS)
 ### Antes do primeiro deploy
 
 1. **Credenciais** de uma conta de dev/sandbox na sessão (`AWS_PROFILE` ou `aws sso login`).
-2. **Acesso ao Claude no Bedrock** em us-east-1: confira no console do Bedrock que a conta
-   pode usar os modelos da Anthropic (a AWS pede um formulário de caso de uso uma vez por conta).
+2. **Acesso ao Claude Haiku 4.5 no Bedrock** em us-east-1.
 3. **Bootstrap do CDK** na conta/região, uma vez:
    ```bash
    npm run cdk -w @agentic-aws/infra -- bootstrap aws://<conta>/us-east-1
    ```
 4. **Prefixo do domínio de login.** É único por região em toda a AWS e não pode conter
-   `aws`, `amazon` nem `cognito` (o synth falha se tiver). O padrão `agentic-pay-poc`
-   provavelmente já está em uso: escolha o seu.
+   `aws`, `amazon` nem `cognito`. O padrão é `agentic-pay-poc-fellowship`.
 
 ### Deploy
 
 ```bash
-npm run deploy -- -c loginDomainPrefix=<seu-prefixo>
+npm run deploy                                    # outro prefixo: -- -c loginDomainPrefix=<prefixo>
 ```
 
 Faz o build do front e o `cdk deploy`. As saídas que importam:
@@ -182,7 +179,7 @@ no console do API Gateway (modo de transferência `STREAM`).
 
 ## Custos e limites
 
-- **Bedrock:** por token. Haiku 5.5 com `effort: low` e cache de prompt ligado.
+- **Bedrock:** por token (Claude Haiku 4.5).
 - **Teto:** throttling de 10 req/s (rajada de 20) no stage; mensagem de até 4.000 caracteres;
   até 4 rodadas de ferramenta por mensagem.
 - O resto (API Gateway, Lambda, DynamoDB on-demand, AgentCore Gateway, CloudFront, logs de
@@ -192,20 +189,14 @@ no console do API Gateway (modo de transferência `STREAM`).
 
 ## Removendo
 
-```bash
-npm run cdk -w @agentic-aws/infra -- destroy
-```
-
-**Ficam na conta** (removal policy `RETAIN`), porque têm dados de usuários: a **tabela do
-DynamoDB** (conversas) e o **User Pool do Cognito**. Apagar os dois é manual, e apaga dados de
-verdade. O bucket do site é apagado com o conteúdo (é só o build).
+Todos os recursos têm a tag `project=agentic-payments-aws`. O `cdk destroy` deixa a tabela do
+DynamoDB e o User Pool do Cognito (`RETAIN`). A remoção completa, passo a passo, está no
+[README da infra](./infra/README.md#remoção-completa).
 
 ---
 
 ## Decisões e limitações conhecidas
 
-- **Permissão do Bedrock em `*`:** as quatro ações `bedrock-mantle:*` usadas são as do exemplo
-  da AWS, que só traz `Resource: "*"`. Vale restringir depois do primeiro deploy.
 - **CORS dos erros do próprio API Gateway** (401 do authorizer, 429 do throttling) libera só o
   domínio do CloudFront. Em `localhost` esses erros aparecem como falha de rede.
 - **Tokens no `sessionStorage`** (padrão do `oidc-client-ts`). Normal para SPA, mas um XSS
@@ -214,5 +205,3 @@ verdade. O bucket do site é apagado com o conteúdo (é só o build).
   a mais que o chat repassaria ao modelo.
 - **Mensagem com erro some ao recarregar:** um turno que falha não é gravado (o histórico não
   pode ficar com meio turno), então só existe na tela até recarregar.
-- **Ferramentas pequenas, sem streaming de argumentos:** `eager_input_streaming` ficou
-  desligado; os argumentos são curtos e não há confirmação de suporte no Bedrock para o Haiku 5.5.
