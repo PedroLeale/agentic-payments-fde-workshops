@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# config de dev gerada por `npm run config:local` a partir das saídas do stack
+/public/config.local.json

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Loja",
-  description: "Workshop: chat com Ollama",
+  description: "PoC: chat com Claude Haiku 5.5 no Bedrock",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
