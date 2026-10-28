@@ -5,11 +5,13 @@
   "type": "module",
   "description": "PoC: chat com Claude Haiku 5.5 no Bedrock, ferramentas em Lambda via AgentCore Gateway, historico no DynamoDB",
   "workspaces": [
+    "packages/shared",
     "packages/tools",
+    "packages/chat",
     "packages/web"
   ],
   "scripts": {
-    "check": "npm run check --workspace @agentic-aws/tools",
+    "check": "npm run check --workspaces --if-present",
     "dev:web": "npm run dev --workspace @agentic-aws/web"
   },
   "devDependencies": {
