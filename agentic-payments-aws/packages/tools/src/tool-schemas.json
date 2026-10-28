@@ -1,0 +1,28 @@
+[
+  {
+    "name": "get_time",
+    "description": "Data e hora atuais. Já retorna no horário de Brasília (UTC-3) por padrão.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "description": "Fuso IANA, ex.: America/Sao_Paulo. Padrão: America/Sao_Paulo."
+        }
+      }
+    }
+  },
+  {
+    "name": "list_items",
+    "description": "Lista os itens à venda e seus preços em reais. Opcionalmente filtra por nome.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "type": "string",
+          "description": "Trecho do nome do item, sem diferenciar maiúsculas."
+        }
+      }
+    }
+  }
+]

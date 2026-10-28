@@ -1,0 +1,10 @@
+{
+  "name": "@agentic-aws/tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Uma Lambda por ferramenta, exposta como MCP pelo AgentCore Gateway",
+  "scripts": {
+    "check": "node src/tools.check.ts && node src/handlers.check.ts && tsc --noEmit"
+  }
+}

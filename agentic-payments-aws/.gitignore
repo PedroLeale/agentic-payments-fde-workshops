@@ -1,0 +1,7 @@
+node_modules/
+dist/
+cdk.out/
+*.tsbuildinfo
+.env
+.env.*
+plan.md
